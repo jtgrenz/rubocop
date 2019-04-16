@@ -35,6 +35,50 @@ RSpec.describe RuboCop::Config do
       end
     end
 
+    context 'when the configuration includes any unrecognized cop name with a VersionAdded' do
+      before do
+        create_file(configuration_path, <<-YAML.strip_indent)
+          FutureLineLength:
+            Enabled: true
+            Max: 200
+            VersionAdded: 0.68.0
+        YAML
+        $stderr = StringIO.new
+      end
+
+      after do
+        $stderr = STDERR
+      end
+
+      it "will ignore if the cop specifies a VersionAdded greater than the current version" do
+        allow(RuboCop::Version).to receive(:version).and_return("0.67.2")
+        configuration # ConfigLoader.load_file will validate config
+        expect($stderr.string).not_to match(/unrecognized cop FutureLineLength/)
+      end
+    end
+
+    context 'when the configuration includes any unrecognized cop name with a VersionRemoved' do
+      before do
+        create_file(configuration_path, <<-YAML.strip_indent)
+          PastLineLength:
+            Enabled: true
+            Max: 10
+            VersionRemoved: 0.40.0
+        YAML
+        $stderr = StringIO.new
+      end
+
+      after do
+        $stderr = STDERR
+      end
+
+      it "will ignore if the cop specifies a VersionRemoved lesser than the current version" do
+        allow(RuboCop::Version).to receive(:version).and_return("0.67.2")
+        configuration # ConfigLoader.load_file will validate config
+        expect($stderr.string).not_to match(/unrecognized cop PastLineLength/)
+      end
+    end
+
     context 'when the configuration includes an empty section' do
       before do
         create_file(configuration_path, ['Metrics/LineLength:'])

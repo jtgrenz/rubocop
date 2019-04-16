@@ -473,6 +473,15 @@ module RuboCop
 
     private
 
+    def cop_not_applicable_to_current_version(cop_name)
+      version_added = for_cop(cop_name)['VersionAdded']
+      version_removed = for_cop(cop_name)['VersionRemoved']
+      rubocop_version = Gem::Version.new(Version.version)
+      return rubocop_version < Gem::Version.new(version_added) unless version_added.nil?
+      return rubocop_version > Gem::Version.new(version_removed) unless version_removed.nil?
+      false
+    end
+
     def warn_about_unrecognized_cops(invalid_cop_names)
       invalid_cop_names.each do |name|
         # There could be a custom cop with this name. If so, don't warn
@@ -482,6 +491,11 @@ module RuboCop
         # the configuration (even though it's not a cop), because it's easier
         # to do so than to pass the value around to various methods.
         next if name == 'inherit_mode'
+
+        # if the cop is defined in a shared config file, the cop might be unrecognized because it was added to a
+        # version newer than version running. Conversly, the cop may have been removed in the current version, but
+        # is still defined in an older shared config file.
+        next if cop_not_applicable_to_current_version(name)
 
         warn Rainbow("Warning: unrecognized cop #{name} found in " \
                      "#{smart_loaded_path}").yellow
